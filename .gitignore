@@ -11,3 +11,7 @@ venv/
 # Python cache
 __pycache__/
 *.py[cod]
+
+# данные не храним в сторонних репозиториях
+data/
+models/
