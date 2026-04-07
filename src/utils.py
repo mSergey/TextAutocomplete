@@ -1,6 +1,7 @@
 import os
 import re
 
+import pandas as pd
 import torch
 from torch import nn
 
@@ -15,8 +16,8 @@ def get_device():
     return device
 
 
-# функция для "чистки" текстов
-def clean_string(text):
+# функция для "чистки" текстов для LSTM
+def clean_string_lstm(text):
     # приведение к нижнему регистру
     text = text.lower()
     # ссылки
@@ -38,6 +39,69 @@ def clean_string(text):
     text = re.sub(r'\s+', ' ', text).strip()
 
     return text
+
+# чистка текстов для GPT трансформера (менее агрессивная)
+def clean_string_transformer(text: str) -> str:
+    # убираем ссылки
+    text = re.sub(r'http\S+|www\S+', '', text)
+
+    # убираем html-теги (если есть)
+    text = re.sub(r'<.*?>', '', text)
+
+    # заменяем переносы строк на пробел
+    text = re.sub(r'\n+', ' ', text)
+
+    # убираем лишние пробелы
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    return text
+
+def drop_short_texts(texts: pd.Series, min_length: int) -> pd.Series:
+    mask = texts.str.split().apply(
+        lambda x: len(x) >= min_length
+    )
+    return texts[mask].reset_index(drop=True)
+
+def drop_long_texts(texts: pd.Series, max_length: int) -> pd.Series:
+    mask = texts.str.split().apply(
+        lambda x: len(x) <= max_length
+    )
+    return texts[mask].reset_index(drop=True)
+
+
+def trim_after_eos(tokens, eos_id):
+    if eos_id in tokens:
+        return tokens[:tokens.index(eos_id)]
+    return tokens
+
+
+def trim_padding(tokens, pad_token_id):
+    if pad_token_id in tokens:
+        idx = tokens.index(pad_token_id)
+        return tokens[:idx]
+    return tokens
+
+
+def split_tokens(tokens, ratio=0.75):
+    split_idx = int(len(tokens) * ratio)
+    return {
+        'input_ids': tokens[:split_idx],
+        'labels': tokens[split_idx:]
+    }
+
+
+def shift_tokens(tokens, step=1):
+    return {
+        'input_ids': tokens[:-step],
+        'labels': tokens[step:]
+    }
+
+def split_text(text, ratio=0.75):
+    splitted = text.split()
+    split_idx = int(len(splitted) * ratio)
+    inputs = ' '.join(splitted[:split_idx])
+    references = ' '.join(splitted[split_idx:])
+    return inputs, references
 
 # функция для сохранения весов модели в словарь state_dict
 def save_model_dict(

@@ -1,5 +1,6 @@
 from typing import Callable, Any
 
+import evaluate
 import numpy as np
 import torch
 from torch.nn import CrossEntropyLoss
@@ -9,8 +10,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import PreTrainedTokenizerBase
 
-from lstm_model import SequencePredictionLSTM
-from lstm_generate import generate
+from src.lstm_model import SequencePredictionLSTM
+from src.lstm_generate import generate
 
 
 def train(
@@ -22,10 +23,11 @@ def train(
         criterion: CrossEntropyLoss,
         optimizer: Adam,
         scheduler: ReduceLROnPlateau,
-        evaluate_func: Callable[[list, list, Any], dict],
-        max_length: int
+        max_length: int,
+        pad_token_id: int
 ) -> None:
-
+    rouge = evaluate.load("rouge")
+    vocab_size = model.fc.out_features
     for epoch in range(n_epochs):
         model.train()
         total_loss = 0
@@ -37,7 +39,7 @@ def train(
             optimizer.zero_grad()
             logits = model.forward(inputs, lengths)
             loss = criterion(
-                logits.view(-1, len(tokenizer.get_vocab())),
+                logits.view(-1, vocab_size),
                 labels.view(-1)
             )
             # считаем градиенты
@@ -45,23 +47,25 @@ def train(
             # обновляем веса
             optimizer.step()
             total_loss += loss.item()
-            scheduler.step(loss.item())
 
         model.eval()  # режим инференса
         with torch.no_grad():  # отключаем вычисления градиентов
             for batch in tqdm(val_loader, desc=f'Validation. Epoch {epoch}'):
-                generated = generate(
+                generated_tails = generate(
                     model=model,
                     tokenizer=tokenizer,
                     batch=batch,
-                    max_sequence_len=max_length
+                    max_sequence_len=max_length,
+                    pad_token_id=pad_token_id
                 )
 
-                val_rouge = evaluate_func(
-                    generated,
-                    batch['labels'].tolist(),
-                    tokenizer
+                results = rouge.compute(
+                    predictions=tokenizer.batch_decode(generated_tails, skip_special_tokens=True),
+                    references=tokenizer.batch_decode(batch['labels'], skip_special_tokens=True),
                 )
-                rouge_metrics.append(val_rouge['rouge1'])
+
+                rouge_metrics.append(results['rouge1'])
+
+        scheduler.step(np.mean(rouge_metrics))
 
         print(f"Epoch {epoch} | Loss: {total_loss:.4f} | ROUGE: {np.mean(rouge_metrics):.4f}")

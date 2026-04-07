@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 
 from torch.utils.data import Dataset
 
+from src.utils import shift_tokens, split_tokens
+
 
 class BaseDataset(ABC, Dataset):
     def __init__(self, texts: list[str], tokenizer, max_length):
@@ -35,15 +37,9 @@ class BaseDataset(ABC, Dataset):
 
 class TrainDataset(BaseDataset):
     def _split_inputs_labels(self, tokens) -> dict[str, list[int]]:
-        return {
-            'input_ids': tokens[:-1],
-            'labels': tokens[1:]
-        }
+        return shift_tokens(tokens)
+
 
 class EvalDataset(BaseDataset):
     def _split_inputs_labels(self, tokens) -> dict[str, list[int]]:
-        split_idx = int(len(tokens) * 0.75)
-        return {
-            'input_ids': tokens[:split_idx],
-            'labels': tokens[split_idx:]
-        }
+        return split_tokens(tokens)

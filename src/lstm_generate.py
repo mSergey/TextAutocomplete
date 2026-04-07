@@ -2,14 +2,15 @@ import torch
 import torch.nn.functional as F
 from transformers import PreTrainedTokenizerBase
 
-from lstm_model import SequencePredictionLSTM
+from src.lstm_model import SequencePredictionLSTM
 
 
 def generate(
         model: SequencePredictionLSTM,
         tokenizer: PreTrainedTokenizerBase,
         batch: dict,
-        max_sequence_len: int
+        max_sequence_len: int,
+        pad_token_id: int
 ) -> list[list[int]]:
 
     # список для хранения сгенерированных токенов
@@ -28,7 +29,7 @@ def generate(
 
     # дополняем последовательности падингами до максимальной длины
     pad_size = max_sequence_len - generated.size(1)
-    generated = F.pad(generated, (0, pad_size), value=0)
+    generated = F.pad(generated, (0, pad_size), value=pad_token_id)
 
     # генерация новых токенов до тех пор, пока все
     # последовательности не будут завершены

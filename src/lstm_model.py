@@ -12,13 +12,13 @@ class SequencePredictionLSTM(nn.Module):
             padding_idx
     ):
         super().__init__()
-        # напишите слой эмбеддинга с входной размерной vocab_size и выходной embedding_dim
+        # слой эмбеддинга с входной размерной vocab_size и выходной embedding_dim
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=padding_idx)
-        # напишите слой LSTM
+        # слой LSTM
         self.lstm = nn.LSTM(embedding_dim, hidden_size, batch_first=True)
         # dropout, normalization
         self.norm = nn.LayerNorm(hidden_size)
-        self.dropout = nn.Dropout(0.5)
+        self.dropout = nn.Dropout(0.3)
         # линейный слой
         self.fc = nn.Linear(hidden_size, vocab_size)
 
