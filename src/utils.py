@@ -1,11 +1,14 @@
+# модуль с дополнительными вспомогательными функциями
 import os
 import re
+from typing import Any
 
 import pandas as pd
 import torch
 from torch import nn
 
 
+# возвращает доступное в системе GPU-устройство
 def get_device():
     if torch.backends.mps.is_available():
        device = torch.device('mps')
@@ -40,6 +43,7 @@ def clean_string_lstm(text):
 
     return text
 
+
 # чистка текстов для GPT трансформера (менее агрессивная)
 def clean_string_transformer(text: str) -> str:
     # убираем ссылки
@@ -56,12 +60,16 @@ def clean_string_transformer(text: str) -> str:
 
     return text
 
+
+# функция для фильтрации текстов короче минимальной длины
 def drop_short_texts(texts: pd.Series, min_length: int) -> pd.Series:
     mask = texts.str.split().apply(
         lambda x: len(x) >= min_length
     )
     return texts[mask].reset_index(drop=True)
 
+
+# функция для фильтрации текстов длинее максимальной длины
 def drop_long_texts(texts: pd.Series, max_length: int) -> pd.Series:
     mask = texts.str.split().apply(
         lambda x: len(x) <= max_length
@@ -69,12 +77,14 @@ def drop_long_texts(texts: pd.Series, max_length: int) -> pd.Series:
     return texts[mask].reset_index(drop=True)
 
 
+# функция для обрезки EOS токенов
 def trim_after_eos(tokens, eos_id):
     if eos_id in tokens:
         return tokens[:tokens.index(eos_id)]
     return tokens
 
 
+# # функция для обрезки паддингов
 def trim_padding(tokens, pad_token_id):
     if pad_token_id in tokens:
         idx = tokens.index(pad_token_id)
@@ -82,6 +92,7 @@ def trim_padding(tokens, pad_token_id):
     return tokens
 
 
+# функция для разделения токенизированного текста на 3/4 и 1/4
 def split_tokens(tokens, ratio=0.75):
     split_idx = int(len(tokens) * ratio)
     return {
@@ -90,18 +101,22 @@ def split_tokens(tokens, ratio=0.75):
     }
 
 
+# функция для сдвига токенизированного текста на 1 шаг (формирование обучающих примеров)
 def shift_tokens(tokens, step=1):
     return {
         'input_ids': tokens[:-step],
         'labels': tokens[step:]
     }
 
+
+# функция для разделения текста на 3/4 и 1/4 по количеству слов
 def split_text(text, ratio=0.75):
     splitted = text.split()
     split_idx = int(len(splitted) * ratio)
     inputs = ' '.join(splitted[:split_idx])
     references = ' '.join(splitted[split_idx:])
     return inputs, references
+
 
 # функция для сохранения весов модели в словарь state_dict
 def save_model_dict(
@@ -112,6 +127,7 @@ def save_model_dict(
     os.makedirs(model_dir, exist_ok=True)  # создание директории
     file_path = os.path.join(model_dir, file_name)  # путь к файлу
     torch.save(model.state_dict(), file_path)
+
 
 # функция для загрузки весов модели из словаря state_dict
 def load_model_params_from_dict(
@@ -129,3 +145,25 @@ def load_model_params_from_dict(
     else:
         print('state_dict file is not found... :(')
         return None
+
+
+# функция для подготовки данных для модели Transformer
+def prepare_data_for_transformer(
+        texts: pd.Series, min_length: int, max_length: int
+) -> dict[str, list[Any]]:
+    # чистка текстов для трансформера
+    texts = texts.apply(clean_string_transformer)
+
+    # удаление коротких текстов
+    texts = drop_short_texts(texts, min_length)
+
+    # удаление длинных текстов
+    texts = drop_long_texts(texts, max_length)
+
+    # разбивка на input (3/4), reference (1/4)
+    texts = texts.apply(split_text)
+
+    return {
+        'input_ids': [row[0] for row in texts],
+        'references': [row[1] for row in texts]
+    }

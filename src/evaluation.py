@@ -10,10 +10,10 @@ from tqdm import tqdm
 from src.lstm_generate import generate
 from src.utils import trim_padding, trim_after_eos
 
-
+# функция для вычисления ROUGE метрики для модели LSTM
 def evaluate_rouge(model, tokenizer, dataloader, max_length, pad_token_id) -> floating[Any]:
     rouge_metrics: list[float] = []
-    rouge = evaluate.load("rouge")
+    rouge = evaluate.load('rouge')
     model.eval()  # режим инференса
     with torch.no_grad():  # отключаем вычисления градиентов
         for batch in tqdm(dataloader, desc=f'Rouge evaluation...'):
@@ -31,9 +31,9 @@ def evaluate_rouge(model, tokenizer, dataloader, max_length, pad_token_id) -> fl
             )
 
             rouge_metrics.append(results['rouge1'])
-    return np.mean(rouge_metrics)
+    return np.mean(rouge_metrics) # возвращает усредненное значение по всем батчам
 
-
+# функция для вычисления ROUGE метрики для модели Transformer
 def evaluate_rouge_transformer(model, tokenizer, dataloader, max_length) -> floating[Any]:
     rouge_metrics: list[float] = []
     rouge = evaluate.load("rouge")
@@ -43,28 +43,28 @@ def evaluate_rouge_transformer(model, tokenizer, dataloader, max_length) -> floa
     with torch.no_grad():
         for batch in tqdm(dataloader, desc=f'Rouge evaluation...'):
             generated = model.generate(
-                input_ids=batch["input_ids"],
-                attention_mask=batch["attention_mask"],
+                input_ids=batch['input_ids'],
+                attention_mask=batch['attention_mask'],
                 max_new_tokens=max_new_tokens,
                 use_cache=False,
                 do_sample=False
             )
-            input_len = batch["input_ids"].shape[1]
-            generated_tails = generated[:, input_len:]
+            input_len = batch['input_ids'].shape[1]
+            generated_tails = generated[:, input_len:] # берем только "хвосты"
             results = rouge.compute(
                 predictions=tokenizer.batch_decode(generated_tails, skip_special_tokens=True),
                 references=batch['references']
             )
             rouge_metrics.append(results['rouge1'])
-            break
+
     return np.mean(rouge_metrics)
 
-
+# функция для получения примеров сгенерированных текстов (для LSTM)
 def lstm_generate_text_examples(model, tokenizer, dataloader, max_length, pad_token_id) -> pd.DataFrame:
     input_sequences: list[str] = []
     continuations: list[str] = []
     with torch.no_grad():  # отключаем вычисления градиентов
-        for batch in tqdm(dataloader, desc=f'Sample text generating...'):
+        for batch in dataloader:
             generated_tails_encoded = generate(
                 model=model,
                 tokenizer=tokenizer,
@@ -96,19 +96,18 @@ def lstm_generate_text_examples(model, tokenizer, dataloader, max_length, pad_to
             samples = pd.DataFrame(
                 {'Input sequence': input_sequences,
                  'Continuation': continuations}
-            )
-            break
-
+            ) # возвращает Dataframe с двумя колонками: входной текст и сгенерированное продолжение
+            break # достаточно одного батча
     return samples
 
-
+# функция для получения примеров сгенерированных текстов (для Transformer)
 def transformer_generate_text_examples(model, tokenizer, dataloader, max_length) -> pd.DataFrame:
     input_sequences: list[str] = []
     continuations: list[str] = []
     max_new_tokens = int(max_length / 4)
     model.eval()
     with torch.no_grad():
-        for batch in tqdm(dataloader, desc=f'Sample text generating...'):
+        for batch in dataloader:
             generated = model.generate(
                 input_ids=batch["input_ids"],
                 attention_mask=batch["attention_mask"],
@@ -130,10 +129,11 @@ def transformer_generate_text_examples(model, tokenizer, dataloader, max_length)
                 generated_tails,
                 skip_special_tokens=True
             ))
-            break
+
+            break # достаточно одного батча
 
     samples = pd.DataFrame(
         {'Input sequence': input_sequences,
          'Continuation': continuations}
-    )
+    ) # возвращает Dataframe с двумя колонками: входной текст и сгенерированное продолжение
     return samples

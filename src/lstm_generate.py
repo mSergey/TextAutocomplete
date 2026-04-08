@@ -4,7 +4,10 @@ from transformers import PreTrainedTokenizerBase
 
 from src.lstm_model import SequencePredictionLSTM
 
-
+# функция для генерации продолжения для входной последовательности
+# для каждого батча генерирует новые токены пока для всех
+# последовательностей в батче не будет достигнут лимит длины
+# или не будет сгенерирован токен окончания
 def generate(
         model: SequencePredictionLSTM,
         tokenizer: PreTrainedTokenizerBase,
@@ -15,7 +18,6 @@ def generate(
 
     # список для хранения сгенерированных токенов
     generated_tails: list[list[int]] = []
-
 
     generated = batch['input_ids'].clone()
     lengths = batch['lengths'].clone()

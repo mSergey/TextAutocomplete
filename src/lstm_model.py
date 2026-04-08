@@ -1,8 +1,8 @@
-# класс модели LSTM
 from torch import nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
+# класс модели нейросети на основе LSTM
 class SequencePredictionLSTM(nn.Module):
     def __init__(
             self,
@@ -23,7 +23,7 @@ class SequencePredictionLSTM(nn.Module):
         self.fc = nn.Linear(hidden_size, vocab_size)
 
     def init_weights(self):
-        # напишите xavier инициализацию весов
+        # xavier инициализация весов
         for layer in self.modules():
             if isinstance(layer, nn.Linear):
                 nn.init.xavier_uniform_(layer.weight)
@@ -40,7 +40,7 @@ class SequencePredictionLSTM(nn.Module):
         embedded = self.embedding(x)
         # "запакуем" тензор embedded, используя pack_padded_sequence
         packed = pack_padded_sequence(embedded, lengths, batch_first=True, enforce_sorted=False)
-        # посчитайте выход rnn
+        # выход rnn
         packed_output, _ = self.lstm(packed)
         output, _ = pad_packed_sequence(packed_output, batch_first=True)
         return self.fc(output)

@@ -1,5 +1,3 @@
-from typing import Callable, Any
-
 import evaluate
 import numpy as np
 import torch
@@ -10,10 +8,10 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import PreTrainedTokenizerBase
 
-from src.lstm_model import SequencePredictionLSTM
 from src.lstm_generate import generate
+from src.lstm_model import SequencePredictionLSTM
 
-
+# функция обучения нейросети LSTM
 def train(
         model: SequencePredictionLSTM,
         n_epochs: int,
@@ -28,11 +26,11 @@ def train(
 ) -> None:
     rouge = evaluate.load("rouge")
     vocab_size = model.fc.out_features
-    for epoch in range(n_epochs):
+    for epoch in range(1, n_epochs + 1):
         model.train()
         total_loss = 0
         rouge_metrics: list[float] = []
-        for batch in tqdm(train_loader, desc=f'Training. Epoch {epoch}'):
+        for batch in tqdm(train_loader, desc=f'LSTM training. Epoch {epoch}'):
             inputs = batch['input_ids']
             labels = batch['labels']
             lengths = batch['lengths']
@@ -50,7 +48,7 @@ def train(
 
         model.eval()  # режим инференса
         with torch.no_grad():  # отключаем вычисления градиентов
-            for batch in tqdm(val_loader, desc=f'Validation. Epoch {epoch}'):
+            for batch in tqdm(val_loader, desc=f'LSTM validation. Epoch {epoch}'):
                 generated_tails = generate(
                     model=model,
                     tokenizer=tokenizer,

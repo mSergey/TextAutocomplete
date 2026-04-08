@@ -5,6 +5,7 @@ from torch.utils.data import Dataset
 from src.utils import shift_tokens, split_tokens
 
 
+# базовый класс датасета для LSTM
 class BaseDataset(ABC, Dataset):
     def __init__(self, texts: list[str], tokenizer, max_length):
         self.tokenizer = tokenizer
@@ -30,16 +31,20 @@ class BaseDataset(ABC, Dataset):
 
         return self._split_inputs_labels(tokens)
 
+    # метод разделения на inputs и labels
+    # под разные реализации для обучения и инференса
     @abstractmethod
     def _split_inputs_labels(self, tokens) -> dict[str, list[int]]:
         ...
 
 
+# класс датасета для train
 class TrainDataset(BaseDataset):
     def _split_inputs_labels(self, tokens) -> dict[str, list[int]]:
-        return shift_tokens(tokens)
+        return shift_tokens(tokens) # делает сдвиг токенов на 1
 
 
+# класс датасета для валидации
 class EvalDataset(BaseDataset):
     def _split_inputs_labels(self, tokens) -> dict[str, list[int]]:
-        return split_tokens(tokens)
+        return split_tokens(tokens) # делит последовательность на 3/4 и 1/4
